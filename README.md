@@ -9,5 +9,5 @@
  		This is the second fastest algorithm.
  	
  	*	BackTrack Algorithm (enhanched), utilizes the rule base algorithm as a starting point. There after
-    it will test all possible numbers and will solve any valid puzzle. This is the slowest algorithm.
+      it will test all possible numbers and will solve any valid puzzle. This is the slowest algorithm.
  
