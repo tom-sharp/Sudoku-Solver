@@ -8,7 +8,7 @@ using Syslib;
 
 
 /*
- * SudokuPuzzle solver make three algorithms to solve sudoku puzzles;
+ * SudokuPuzzle solver provide three algorithms to solve sudoku puzzles;
  * 
  *	1.	Rule based Algorithm uses three rules to solve puzzle and is the fastest algorithm.
  *		The rules are: Cell Singles, Cluster Singles, Cluster cells Traverse Exclusions
@@ -17,7 +17,8 @@ using Syslib;
  *		This is the second fastest algorithm, that sholund not be needed if the puzzle is made for humans
  *	
  *	3.	BackTrack Algorithm (enhanched). This is the slowest algorithm and will test all possible numbers
- *		and will finally solve the puzzle if it's a valid puzzle.
+ *		and will finally solve the puzzle if it's a valid puzzle. However, it utilize Rule based algorithm as
+ *		a starting point and may never kick-in as the rule based algorithm probably already solved the puzzle
  *		
  */
 
