@@ -4,13 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Sudoku.Puzzle;
+
+
 /*
  *		Version		Description
  *		0.01		Initial
  *		0.02		End application after showing help if help switch is provided
+ *		0.03		Moved SudokuPuzzle to its own assembly
  */
 
-namespace Sudoku_Solver
+namespace Sudoku.Solver
 {
 	public class SudokuSolver
 	{

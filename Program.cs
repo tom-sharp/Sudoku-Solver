@@ -1,6 +1,8 @@
 ﻿using System;
 
-namespace Sudoku_Solver
+using Sudoku.Puzzle;
+
+namespace Sudoku.Solver
 {
 	class Program
 	{
