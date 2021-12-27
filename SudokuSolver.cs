@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 using Sudoku.Puzzle;
 
-
 /*
  *		Version		Description
  *		0.01		Initial
