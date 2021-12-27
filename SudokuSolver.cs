@@ -23,7 +23,7 @@ namespace Sudoku.Solver
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
 		public void ShowHelp() {
-			Console.WriteLine("[HELP] Sudoku-Solver");
+			Console.WriteLine("Sudoku-Solver");
 			Console.WriteLine("usage: sudoku-solver  {-?} {-r} {-n} {-b} {-m} {-1} {-2} {-3} {puzzlestring}");
 			Console.WriteLine("   By default 3R Algorithm is used (not showing progress)");
 			Console.WriteLine("      -? show this help");
