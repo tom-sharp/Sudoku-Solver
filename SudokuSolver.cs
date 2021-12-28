@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Syslib;
 using Sudoku.Puzzle;
 
 /*
@@ -11,13 +12,14 @@ using Sudoku.Puzzle;
  *		0.01		Initial
  *		0.02		End application after showing help if help switch is provided
  *		0.03		Moved SudokuPuzzle to its own assembly
+ *		0.04		Added feature to read sudoku puzzle from file
  */
 
 namespace Sudoku.Solver
 {
 	public class SudokuSolver
 	{
-		string MSGVersion = "Sudoku-Solver 0.03  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.04  (-? for help)";
 		string demopuzzle1 = "38........5...2..6...14....1...8..3...9.3.8.4..2.........62.7....6...........1.8.";
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
@@ -52,22 +54,44 @@ namespace Sudoku.Solver
 					else if (str.StartsWith("-n")) { OptNumpass = true; }
 					else if (str.StartsWith("-b")) { OptBackTrack = true; }
 					else if (str.StartsWith("-m")) { OptShowMask = true; }
-					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return; }
+					else if (str.StartsWith("-f")) { OptReadFile = true; }
 					else if (str.StartsWith("-1")) { this.Puzzle.SetPuzzle(demopuzzle1); }
 					else if (str.StartsWith("-2")) { this.Puzzle.SetPuzzle(demopuzzle2); }
 					else if (str.StartsWith("-3")) { this.Puzzle.SetPuzzle(demopuzzle3); }
+					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return; }
 					else Console.WriteLine($"Unknow switch {str}");
 				}
 				else {
-					// expected to be the puzzle string
+					// expected to be the puzzle string OR filename if readfile is set
 					if (str.StartsWith("?")) { ShowHelp(); }
-					else this.Puzzle.SetPuzzle(str);
+					else puzzlefile = str;
 				}
 				count++;
 			}
 			if (count == 0) Console.WriteLine(MSGVersion);
 
-			// check if its valid and ot solved allready
+			// check if puzzle is provided as argument or it should be read from file
+			if (OptReadFile) {
+				if ((puzzlefile == null) || (puzzlefile.Length == 0)) { Console.WriteLine("No file name is provided"); return; }
+				if ((puzzlefile.Contains('?')) || (puzzlefile.Contains('*'))) { Console.WriteLine("Multiple file selections is not supported"); return; }
+				CStream fstream = new CStream();
+				if (!fstream.isFileExist(puzzlefile)) { Console.WriteLine($"File '{puzzlefile}' not found"); return; }
+				if (fstream.OpenStream(CStream.StreamMode.ReadFile, filename: puzzlefile, buffersize: 500) != 0) { Console.WriteLine($"Could not Read file '{puzzlefile}'"); return; }
+				int counter = 0;
+				CStr puzzle = new CStr(82);
+				byte ch;
+				while ((fstream.BytesToRead() > 0) && (counter < 81)) {
+					ch = fstream.GetChar();
+					if ((ch >= '0') && (ch <= '9') || (ch == '.') || (ch == 'x') || (ch == 'X')) {
+						puzzle.Append(ch);
+						counter++;
+					}
+				}
+				this.Puzzle.SetPuzzle(puzzle.ToString());
+			}
+			else this.Puzzle.SetPuzzle(puzzlefile);
+
+			// check if its valid and not solved allready
 			Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm");
 			if (!this.Puzzle.IsValid())
 			{
@@ -137,5 +161,7 @@ namespace Sudoku.Solver
 		bool OptNumpass = false;
 		bool OptBackTrack = false;
 		bool OptShowMask = false;
+		bool OptReadFile = false;
+		string puzzlefile = "";
 	}
 }
