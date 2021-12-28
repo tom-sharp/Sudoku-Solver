@@ -13,13 +13,14 @@ using Sudoku.Puzzle;
  *		0.02		End application after showing help if help switch is provided
  *		0.03		Moved SudokuPuzzle to its own assembly
  *		0.04		Added feature to read sudoku puzzle from file
+ *		0.05		Fixed problem with demo puzzles introduced in version 0.04
  */
 
 namespace Sudoku.Solver
 {
 	public class SudokuSolver
 	{
-		string MSGVersion = "Sudoku-Solver 0.04  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.05  (-? for help)";
 		string demopuzzle1 = "38........5...2..6...14....1...8..3...9.3.8.4..2.........62.7....6...........1.8.";
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
@@ -28,6 +29,7 @@ namespace Sudoku.Solver
 			Console.WriteLine("usage: sudoku-solver  {-?} {-r} {-n} {-b} {-m} {-1} {-2} {-3} {puzzlestring}");
 			Console.WriteLine("   By default 3R Algorithm is used (not showing progress)");
 			Console.WriteLine("      -? show this help");
+			Console.WriteLine("      -f read puzzle from file");
 			Console.WriteLine("      -r show progress solving 3R algorithm ");
 			Console.WriteLine("      -n extend solving using numpass algorithm");
 			Console.WriteLine("      -b extend solving using backtrack algorithm");
@@ -39,6 +41,13 @@ namespace Sudoku.Solver
 			Console.WriteLine("   of numbers 1-9 and '.' '0' 'x' for undefined cells. If not provided or");
 			Console.WriteLine("   string is shorter than 81 characters the remaining cells will be set as");
 			Console.WriteLine("   undefined");
+			Console.WriteLine("\n   Examples:");
+			Console.WriteLine("   sudoku-solver -1 -r");
+			Console.WriteLine("   sudoku-solver -f puzzle.txt");
+			Console.WriteLine("   sudoku-solver -f -m puzzle.txt");
+			Console.WriteLine("   sudoku-solver -f -b puzzle.txt");
+			Console.WriteLine("   sudoku-solver -m \"123456789\"");
+			Console.WriteLine("   sudoku-solver -b \"123456789\"");
 		}
 		
 		public void Run(string[] args) {
@@ -55,9 +64,9 @@ namespace Sudoku.Solver
 					else if (str.StartsWith("-b")) { OptBackTrack = true; }
 					else if (str.StartsWith("-m")) { OptShowMask = true; }
 					else if (str.StartsWith("-f")) { OptReadFile = true; }
-					else if (str.StartsWith("-1")) { this.Puzzle.SetPuzzle(demopuzzle1); }
-					else if (str.StartsWith("-2")) { this.Puzzle.SetPuzzle(demopuzzle2); }
-					else if (str.StartsWith("-3")) { this.Puzzle.SetPuzzle(demopuzzle3); }
+					else if (str.StartsWith("-1")) { puzzlefile = demopuzzle1; }
+					else if (str.StartsWith("-2")) { puzzlefile = demopuzzle2; }
+					else if (str.StartsWith("-3")) { puzzlefile = demopuzzle3; }
 					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return; }
 					else Console.WriteLine($"Unknow switch {str}");
 				}
