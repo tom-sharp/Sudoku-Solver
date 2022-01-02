@@ -21,13 +21,15 @@ using Sudoku.Puzzle;
  *					BugFix - when reading puzzle from file, the opened file was never closed
  *		0.07		Removed limitation of max 81 sudoko lines read from file and increased file buffer
  *					Removed Numpass algorithm
+ *		0.08		Added creation of random solved sudoku
+ *					Changed more situations to show puzzle as grid
  */
 
 namespace Sudoku.Solver
 {
 	public class SudokuSolver
 	{
-		string MSGVersion = "Sudoku-Solver 0.07  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.08  (-? for help)";
 		string[] MSGHelp = {
 			"usage: sudoku-solver  {-?} {-r} {-b} {-m} {-1} {-2} {-3} {puzzlestring}",
 			"   By default 3R Algorithm is used (not showing progress)",
@@ -37,7 +39,8 @@ namespace Sudoku.Solver
 			"      -r show progress solving 3R algorithm ",
 			"      -b extend solving using backtrack algorithm",
 			"      -m show possible numbers mask if not able to solve puzzle",
-			"      -v show puzzle and number mask as a square",
+			"      -v show puzzle and number mask as a grid",
+			"      -c Create Sudoku solution",
 			"      -1 solve demo puzzle 1",
 			"      -2 solve demo puzzle 2",
 			"      -3 solve demo puzzle 3",
@@ -76,6 +79,7 @@ namespace Sudoku.Solver
 					else if (str.StartsWith("-fr")) { OptReadFileMultipleRow = true; }
 					else if (str.StartsWith("-f")) { OptReadFile = true; }
 					else if (str.StartsWith("-v")) { OptShowVertical = true; }
+					else if (str.StartsWith("-c")) { OptCreateSudoku = true; }
 					else if (str.StartsWith("-1")) { puzzlefile = demopuzzle1; }
 					else if (str.StartsWith("-2")) { puzzlefile = demopuzzle2; }
 					else if (str.StartsWith("-3")) { puzzlefile = demopuzzle3; }
@@ -84,13 +88,19 @@ namespace Sudoku.Solver
 				}
 				else {
 					// expected to be the puzzle string OR filename if readfile is set
-					if (str.StartsWith("?")) { ShowHelp(); }
+					if (str.StartsWith("?")) { ShowHelp(); return; }
 					else puzzlefile = str;
 				}
 				count++;
 			}
 
 			if (count == 0) Console.WriteLine(MSGVersion);
+
+			if (OptCreateSudoku) {
+				CreateSudoku();
+				ShowPuzzle("New Random sudoku");
+				return;
+			}
 
 			if (OptReadFileMultipleRow)	{
 				CList<CStr> puzzlelist = GetMultiplePuzzles(puzzlefile);
@@ -107,6 +117,29 @@ namespace Sudoku.Solver
 				SolvePuzzle();
 			}
 
+		}
+
+		SudokuPuzzle CreateSudoku() {
+			var newpuzzle = new CStr();
+			var rnd = new CRandom();
+			while (true) {
+				newpuzzle.Fill(81, (byte)'.');
+
+				newpuzzle.Set(0, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(1, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(2, (byte)('0' + rnd.RandomNumber(1, 9)));
+				
+				newpuzzle.Set(12, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(13, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(14, (byte)('0' + rnd.RandomNumber(1, 9)));
+
+				newpuzzle.Set(24, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(25, (byte)('0' + rnd.RandomNumber(1, 9)));
+				newpuzzle.Set(26, (byte)('0' + rnd.RandomNumber(1, 9)));
+
+				if (this.Puzzle.SetPuzzle(newpuzzle.ToString()).ResolveBacktrack()) break;
+			}
+			return this.Puzzle;
 		}
 
 		CList<CStr> GetMultiplePuzzles(string puzzlefile) {
@@ -160,28 +193,28 @@ namespace Sudoku.Solver
 			return true;
 		}
 
-		void SolvePuzzle() {
+		SudokuPuzzle SolvePuzzle() {
 
 			// check if its valid and not solved allready
-			Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm");
 			if (!this.Puzzle.IsValid()) {
-				Console.WriteLine("Invalid or unsolvable puzzle");
-				return;
+				ShowPuzzle("Invalid or unsolvable puzzle");
+				return this.Puzzle;
 			}
 			else if (this.Puzzle.IsSolved()) {
-				Console.WriteLine("Puzzle alredy solved");
-				return;
+				ShowPuzzle("Puzzle alredy solved");
+				return this.Puzzle;
 			}
 
 			// Always start with rule based algorithm, if option rule is set then display progress
+			Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm");
 			if (OptRule) {
 				while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
 			} 
 			else Puzzle.ResolveRules();
 
 			if (this.Puzzle.IsSolved()) {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Puzzle solved");
-				return;
+				ShowPuzzle("Puzzle solved");
+				return this.Puzzle;
 			}
 
 			// Check if BackTrack should be used
@@ -190,22 +223,23 @@ namespace Sudoku.Solver
 				Puzzle.ResolveBacktrack();
 				if (this.Puzzle.IsSolved())
 				{
-					Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Puzzle solved");
-					return;
+					ShowPuzzle("Puzzle solved");
+					return this.Puzzle;
 				}
 			}
 
 			// Puzzle not solved
 			if (!Puzzle.IsValid()) {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Invalid puzzle");
-				Console.WriteLine("Invalid or unsolvable puzzle");
-				return;
+				ShowPuzzle("Invalid or unsolvable puzzle");
+				return this.Puzzle;
 			}
 
 
 			// Check if mask should be shown
 			if (OptShowMask) ShowMask();
 			ShowPuzzle("Could not solve puzzle");
+			return this.Puzzle;
+
 		}
 
 		// Show puzzle as grid
@@ -272,5 +306,6 @@ namespace Sudoku.Solver
 		bool OptReadFile = false;
 		bool OptReadFileMultipleRow = false;
 		bool OptShowVertical = false;
+		bool OptCreateSudoku = false;
 	}
 }
