@@ -8,9 +8,9 @@ using Syslib;
 using Sudoku.Puzzle;
 
 /*
- * Solving performance test	solving: 4000-puzzles.txt (located in binaries folder)
- *			14 seconds using logic only to solve all 4000 puzzles
- *			20 seconds using backtrack only (-bo) to solve all 4000 puzzles
+ * Performance test solving: 4000-puzzles.txt (located in binaries folder)
+ *			13 seconds using logic only to solve all 4000 puzzles
+ *			22 seconds using backtrack only (-bo) to solve all 4000 puzzles
  * 
  * 
  *		Version		Description
@@ -74,8 +74,7 @@ namespace Sudoku.Solver
 			this.Puzzle = new SudokuPuzzle();
 			while (count < args.Length) {
 				str = args[count].ToLower();
-				if (str.StartsWith('-'))
-				{
+				if (str.StartsWith('-')) {
 					// expectd to be an option
 					if (str.StartsWith("-r")) { OptRule = true; }
 					else if (str.StartsWith("-bo")) { OptBackTrack = true; OptBackTrackOnly = true; }
@@ -105,6 +104,7 @@ namespace Sudoku.Solver
 			if (OptCreateSudoku) {
 				count = 1;
 				if (puzzlefile.Length > 0) { if (!Int32.TryParse(puzzlefile, out count)) count = 1; }
+				if (count <= 0) count = 1;
 				while (count-- > 0) {
 					CreateSudoku();
 					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
@@ -144,8 +144,7 @@ namespace Sudoku.Solver
 			if (fstream.OpenStream(CStream.StreamMode.ReadFile, filename: puzzlefile) != 0) { Console.WriteLine($"Could not Read file '{puzzlefile}'"); return null; }
 			int counter = 0;
 			CStr puzzle;
-			while (fstream.BytesToRead() > 0)
-			{
+			while (fstream.BytesToRead() > 0) {
 				counter++;
 				puzzle = fstream.GetLine();
 				if (puzzle.Length() > 300) { Console.WriteLine($"Puzzle length > 300 characters. at line {counter}"); fstream.CloseStream(); return null; }
@@ -160,8 +159,7 @@ namespace Sudoku.Solver
 		// return false if failed to set puzzle file
 		bool SetPuzzle(string puzzlefile) {
 			// check if puzzle is provided as argument or it should be read from file
-			if (OptReadFile)
-			{
+			if (OptReadFile) {
 				if ((puzzlefile == null) || (puzzlefile.Length == 0)) { Console.WriteLine("No file name is provided"); return false; }
 				if ((puzzlefile.Contains('?')) || (puzzlefile.Contains('*'))) { Console.WriteLine("Multiple file selections is not supported"); return false; }
 				CStream fstream = new CStream();
@@ -170,11 +168,9 @@ namespace Sudoku.Solver
 				int counter = 0;
 				CStr puzzle = new CStr(82);
 				byte ch;
-				while ((fstream.BytesToRead() > 0) && (counter < 81))
-				{
+				while ((fstream.BytesToRead() > 0) && (counter < 81)) {
 					ch = fstream.GetChar();
-					if ((ch >= '0') && (ch <= '9') || (ch == '.') || (ch == 'x') || (ch == 'X'))
-					{
+					if ((ch >= '0') && (ch <= '9') || (ch == '.') || (ch == 'x') || (ch == 'X')) {
 						puzzle.Append(ch);
 						counter++;
 					}
@@ -241,8 +237,7 @@ namespace Sudoku.Solver
 			int count = 0, spacer = 0;
 			string puzzle = this.Puzzle.GetPuzzle();
 
-			if (!OptShowVertical)
-			{
+			if (!OptShowVertical) {
 				if ((msg != null) && (msg.Length > 0)) Console.WriteLine($"{puzzle}   - {msg}");
 				else Console.WriteLine($"{puzzle}");
 				return;
@@ -263,8 +258,7 @@ namespace Sudoku.Solver
 			string[] mask = new string[9];
 			int count = 0, spacer;
 
-			if (!OptShowVertical)
-			{
+			if (!OptShowVertical) {
 				for (int num = 1; num <= 9; num++) Console.WriteLine($"{Puzzle.GetPossible(num)}   - Possible mask");
 				return;
 			}
@@ -272,11 +266,9 @@ namespace Sudoku.Solver
 			Console.WriteLine("Possible number mask");
 			for (int num = 0; num < 9; num++) mask[num] = Puzzle.GetPossible(num + 1);
 			while (count < 81) {
-				for (int row = 0; row < 9; row++)
-				{
+				for (int row = 0; row < 9; row++) {
 					spacer = 0;
-					for (int col = 0; col < 9; col++)
-					{
+					for (int col = 0; col < 9; col++) {
 						Console.Write(mask[row][count + col]);
 						spacer++;
 						if ((spacer == 3) || (spacer == 6)) Console.Write(" ");

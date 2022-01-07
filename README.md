@@ -11,7 +11,7 @@
 		To run backtrack only, use switch -bo instead.
 		
 	*	Performance test solving: 4000-puzzles.txt (located in binaries folder)
- 		14 seconds using logic only to solve all 4000 puzzles
- 		20 seconds using backtrack only (-bo) to solve all 4000 puzzles
+ 		13 seconds using logic only to solve all 4000 puzzles
+ 		22 seconds using backtrack only (-bo) to solve all 4000 puzzles
 	
  
