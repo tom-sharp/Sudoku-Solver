@@ -6,12 +6,11 @@
  		The rules are: Cell singles, Cluster singles, Cluster cells traverse exclusions
 		Will not be able to solve puzzles with multiple solutions as it uses logic rules
  	 	
- 	*	BackTrack Algorithm (enhanched), utilizes the rule base algorithm as a starting point when using switch -b.
+ 	*	NumPass Algorithm, utilizes the rule base algorithm to increase performance.
  		There after it will test all qualified possible numbers and will solve any valid puzzle.
-		To run backtrack only, use switch -bo instead.
 		
 	*	Performance test solving: 4000-puzzles.txt (located in binaries folder)
  		13 seconds using logic only to solve all 4000 puzzles
- 		22 seconds using backtrack only (-bo) to solve all 4000 puzzles
+ 		13 seconds using numpass algorithm to solve all 4000 puzzles
 	
  

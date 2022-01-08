@@ -10,10 +10,12 @@ using Sudoku.Puzzle;
 /*
  * Performance test solving: 4000-puzzles.txt (located in binaries folder)
  *			13 seconds using logic only to solve all 4000 puzzles
- *			22 seconds using backtrack only (-bo) to solve all 4000 puzzles
+ *			13 seconds using numpass algorithm to solve all 4000 puzzles
  * 
  * 
  *		Version		Description
+ *		0.10		Removed backtrack and added NumPass algorithm
+ *					updated to use version 0.08 of SudokuPuzzle (NumPass)
  *		0.09		Added creation of puzzles (switch -cp)
  *					Added option to use backtrack only (switch -bo)
  *		0.08		Added creation of random solved sudoku
@@ -35,17 +37,16 @@ using Sudoku.Puzzle;
 
 namespace Sudoku.Solver
 {
-	public class SudokuSolver
-	{
-		string MSGVersion = "Sudoku-Solver 0.09  (-? for help)";
+	public class SudokuSolver {
+
+		string MSGVersion = "Sudoku-Solver 0.10  (-? for help)";
 		string[] MSGHelp = {
-			"usage: sudoku-solver  {-?} {-r} {-b} {-c {count}} {-cp {count}} {-m} {-1} {-2} {-3} {puzzlestring}",
+			"usage: sudoku-solver  {-?} {-r} {-np} {-c {count}} {-cp {count}} {-m} {-v} {-1} {-2} {-3} {puzzlestring}",
 			"      -? show this help",
 			"      -f read puzzle from file",
 			"      -fr read puzzles from file, each line should be a puzzle",
 			"      -r show progress solving 3R algorithm ",
-			"      -b extend solving using backtrack algorithm",
-			"      -bo use backtrack algorithm only",
+			"      -np extend solving using NumPass algorithm",
 			"      -m show possible numbers mask if not able to solve puzzle",
 			"      -v show puzzle and number mask as a grid",
 			"      -c {count} Create Sudoku solution, count = number of sudokus to create",
@@ -59,7 +60,7 @@ namespace Sudoku.Solver
 			"\n   Examples:",
 			"   sudoku-solver -1 -r              sudoku-solver -m \"123456789\"     sudoku-solver -cp 10",
 			"   sudoku-solver -f puzzle.txt      sudoku-solver -b \"123456789\"     sudoku-solver -cp -v",
-			"   sudoku-solver -f -m puzzle.txt   sudoku-solver -f -b puzzle.txt   sudoku-solver -fr puzzles.txt",
+			"   sudoku-solver -f -m puzzle.txt   sudoku-solver -f -np puzzle.txt   sudoku-solver -fr puzzles.txt",
 		};
 
 		public void ShowHelp() {
@@ -72,13 +73,14 @@ namespace Sudoku.Solver
 			string str;
 			string puzzlefile = "";
 			this.Puzzle = new SudokuPuzzle();
-			while (count < args.Length) {
-				str = args[count].ToLower();
+
+			if (args.Length == 0) Console.WriteLine(MSGVersion);
+			foreach (var arg in args) {
+				str = arg.ToLower();
 				if (str.StartsWith('-')) {
 					// expectd to be an option
 					if (str.StartsWith("-r")) { OptRule = true; }
-					else if (str.StartsWith("-bo")) { OptBackTrack = true; OptBackTrackOnly = true; }
-					else if (str.StartsWith("-b")) { OptBackTrack = true; }
+					else if (str.StartsWith("-np")) { OptNumPass = true; }
 					else if (str.StartsWith("-m")) { OptShowMask = true; }
 					else if (str.StartsWith("-fr")) { OptReadFileMultipleRow = true; }
 					else if (str.StartsWith("-f")) { OptReadFile = true; }
@@ -89,17 +91,15 @@ namespace Sudoku.Solver
 					else if (str.StartsWith("-2")) { puzzlefile = demopuzzle2; }
 					else if (str.StartsWith("-3")) { puzzlefile = demopuzzle3; }
 					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return; }
-					else Console.WriteLine($"Unknow switch {str}");
+					else { Console.WriteLine($"Unknow switch {str}"); return; }
 				}
 				else {
 					// expected to be the puzzle string OR filename if readfile is set
 					if (str.StartsWith("?")) { ShowHelp(); return; }
 					else puzzlefile = str;
 				}
-				count++;
 			}
 
-			if (count == 0) Console.WriteLine(MSGVersion);
 
 			if (OptCreateSudoku) {
 				count = 1;
@@ -194,24 +194,22 @@ namespace Sudoku.Solver
 				return this.Puzzle;
 			}
 
-			// Always start with rule based algorithm, if option rule is set then display progress
-			if (!OptBackTrackOnly) {
+
+			// Check if NumPass should be used
+			if (OptNumPass) {
+				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
+				Puzzle.ResolveNumPass();
+				if (this.Puzzle.IsSolved()) {
+					ShowPuzzle("Puzzle solved");
+					return this.Puzzle;
+				}
+			}
+			else {
 				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm ({this.Puzzle.GetNumberCount()})");
 				if (OptRule) {
 					while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
 				}
 				else Puzzle.ResolveRules();
-				if (this.Puzzle.IsSolved())	{
-					ShowPuzzle("Puzzle solved");
-					return this.Puzzle;
-				}
-			}
-
-
-			// Check if BackTrack should be used
-			if (OptBackTrack) {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting backtrack ({this.Puzzle.GetNumberCount()})");
-				Puzzle.ResolveBacktrack();
 				if (this.Puzzle.IsSolved()) {
 					ShowPuzzle("Puzzle solved");
 					return this.Puzzle;
@@ -223,7 +221,6 @@ namespace Sudoku.Solver
 				ShowPuzzle("Invalid or unsolvable puzzle");
 				return this.Puzzle;
 			}
-
 
 			// Check if mask should be shown
 			if (OptShowMask) ShowMask();
@@ -287,8 +284,7 @@ namespace Sudoku.Solver
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
 		SudokuPuzzle Puzzle;
 		bool OptRule = false;
-		bool OptBackTrack = false;
-		bool OptBackTrackOnly = false;
+		bool OptNumPass = false;
 		bool OptShowMask = false;
 		bool OptReadFile = false;
 		bool OptReadFileMultipleRow = false;
