@@ -10,10 +10,15 @@ using Sudoku.Puzzle;
 /*
  * Performance test solving: 4000-puzzles.txt (located in binaries folder)
  *			13 seconds using logic only to solve all 4000 puzzles
- *			13 seconds using numpass algorithm to solve all 4000 puzzles
+ *			13 seconds using numpass algorithm to solve all 4000 puzzles (numpass never kick-in as they all solves on logic)
  * 
  * 
  *		Version		Description
+ *		0.11		Added support to create variant puzzles of same solution (-cpb)
+ *					Changed to use NumPass as default algorithm
+ *					Replaced switch -np with switch -l to use Logic only to try solve puzzle
+ *					Renamed switch -r to -lr (as its only applicable to logic algorithm)
+ *					Renamed switch -m to -lm (as its only applicable to logic algorithm)
  *		0.10		Removed backtrack and added NumPass algorithm
  *					updated to use version 0.08 of SudokuPuzzle (NumPass)
  *		0.09		Added creation of puzzles (switch -cp)
@@ -43,14 +48,15 @@ namespace Sudoku.Solver
 		string[] MSGHelp = {
 			"usage: sudoku-solver  {-?} {-r} {-np} {-c {count}} {-cp {count}} {-m} {-v} {-1} {-2} {-3} {puzzlestring}",
 			"      -? show this help",
-			"      -f read puzzle from file",
-			"      -fr read puzzles from file, each line should be a puzzle",
-			"      -r show progress solving 3R algorithm ",
-			"      -np extend solving using NumPass algorithm",
-			"      -m show possible numbers mask if not able to solve puzzle",
+			"      -f read a puzzle from file",
+			"      -fr read multiple puzzles from file, each line should be a puzzle",
+			"      -l use logic only to try solve puzzle",
+			"      -lr use logic only to try solve puzzle and show progress",
+			"      -lm use logic only to try solve puzzle and if not able to solve show possible numbers mask",
 			"      -v show puzzle and number mask as a grid",
 			"      -c {count} Create Sudoku solution, count = number of sudokus to create",
 			"      -cp {count} Create Sudoku puzzle, count = number of puzzles to create",
+			"      -cpb {count} Create Sudoku puzzle using same base sudoku, count = number of puzzles to create",
 			"      -1 solve demo puzzle 1",
 			"      -2 solve demo puzzle 2",
 			"      -3 solve demo puzzle 3",
@@ -58,9 +64,9 @@ namespace Sudoku.Solver
 			"   '.' '0' 'x' for undefined cells. If not provided or string is shorter than 81 characters the",
 			"   remaining cells will be set as undefined",
 			"\n   Examples:",
-			"   sudoku-solver -1 -r              sudoku-solver -m \"123456789\"     sudoku-solver -cp 10",
-			"   sudoku-solver -f puzzle.txt      sudoku-solver -b \"123456789\"     sudoku-solver -cp -v",
-			"   sudoku-solver -f -m puzzle.txt   sudoku-solver -f -np puzzle.txt   sudoku-solver -fr puzzles.txt",
+			"   sudoku-solver -2 -lr              sudoku-solver \"123456789\"           sudoku-solver -c 10",
+			"   sudoku-solver -f puzzle.txt       sudoku-solver -lm \"123456789\"       sudoku-solver -cp -v",
+			"   sudoku-solver -f -lm puzzle.txt   sudoku-solver -fr puzzles.txt       sudoku-solver -cpb 10",
 		};
 
 		public void ShowHelp() {
@@ -79,12 +85,13 @@ namespace Sudoku.Solver
 				str = arg.ToLower();
 				if (str.StartsWith('-')) {
 					// expectd to be an option
-					if (str.StartsWith("-r")) { OptRule = true; }
-					else if (str.StartsWith("-np")) { OptNumPass = true; }
-					else if (str.StartsWith("-m")) { OptShowMask = true; }
+					if (str.StartsWith("-lr")) { OptLogicOnly = true; OptLogicOnlyProgress = true; }
+					else if (str.StartsWith("-lm")) { OptLogicOnly = true; OptShowMask = true; }
+					else if (str.StartsWith("-l")) { OptLogicOnly = true; }
 					else if (str.StartsWith("-fr")) { OptReadFileMultipleRow = true; }
 					else if (str.StartsWith("-f")) { OptReadFile = true; }
 					else if (str.StartsWith("-v")) { OptShowVertical = true; }
+					else if (str.StartsWith("-cpb")) { OptCreateSudoku = true; OptCreateSudokuBase = true; OptCreateSudokuPuzzle = true; }
 					else if (str.StartsWith("-cp")) { OptCreateSudoku = true; OptCreateSudokuPuzzle = true; }
 					else if (str.StartsWith("-c")) { OptCreateSudoku = true; }
 					else if (str.StartsWith("-1")) { puzzlefile = demopuzzle1; }
@@ -102,11 +109,13 @@ namespace Sudoku.Solver
 
 
 			if (OptCreateSudoku) {
+				SudokuPuzzle sudokubase = null;
+				if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
 				count = 1;
 				if (puzzlefile.Length > 0) { if (!Int32.TryParse(puzzlefile, out count)) count = 1; }
 				if (count <= 0) count = 1;
 				while (count-- > 0) {
-					CreateSudoku();
+					CreateSudoku(sudokubase);
 					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
 				}
 				return;
@@ -129,8 +138,8 @@ namespace Sudoku.Solver
 
 		}
 
-		SudokuPuzzle CreateSudoku() {
-			if (this.OptCreateSudokuPuzzle) this.Puzzle = new CreateSudoku().GetSudokuPuzzle();
+		SudokuPuzzle CreateSudoku(SudokuPuzzle sudokubase) {
+			if (this.OptCreateSudokuPuzzle) this.Puzzle = new CreateSudoku().GetSudokuPuzzle(sudokubase);
 			else this.Puzzle = new CreateSudoku().GetNewSudoku();
 			return this.Puzzle;
 		}
@@ -194,22 +203,21 @@ namespace Sudoku.Solver
 				return this.Puzzle;
 			}
 
-
-			// Check if NumPass should be used
-			if (OptNumPass) {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
-				Puzzle.ResolveNumPass();
+			// check if default NumPass algorithm should be used or if Logic only should be used
+			if (OptLogicOnly) {
+				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm ({this.Puzzle.GetNumberCount()})");
+				if (OptLogicOnlyProgress) {
+					while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
+				}
+				else Puzzle.ResolveRules();
 				if (this.Puzzle.IsSolved()) {
 					ShowPuzzle("Puzzle solved");
 					return this.Puzzle;
 				}
 			}
 			else {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm ({this.Puzzle.GetNumberCount()})");
-				if (OptRule) {
-					while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
-				}
-				else Puzzle.ResolveRules();
+				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
+				Puzzle.ResolveNumPass();
 				if (this.Puzzle.IsSolved()) {
 					ShowPuzzle("Puzzle solved");
 					return this.Puzzle;
@@ -283,13 +291,14 @@ namespace Sudoku.Solver
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
 		SudokuPuzzle Puzzle;
-		bool OptRule = false;
-		bool OptNumPass = false;
+		bool OptLogicOnly = false;
+		bool OptLogicOnlyProgress = false;
 		bool OptShowMask = false;
 		bool OptReadFile = false;
 		bool OptReadFileMultipleRow = false;
 		bool OptShowVertical = false;
 		bool OptCreateSudoku = false;
+		bool OptCreateSudokuBase = false;
 		bool OptCreateSudokuPuzzle = false;
 	}
 }
