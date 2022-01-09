@@ -44,7 +44,7 @@ namespace Sudoku.Solver
 {
 	public class SudokuSolver {
 
-		string MSGVersion = "Sudoku-Solver 0.10  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.11  (-? for help)";
 		string[] MSGHelp = {
 			"usage: sudoku-solver  {-?} {-r} {-np} {-c {count}} {-cp {count}} {-m} {-v} {-1} {-2} {-3} {puzzlestring}",
 			"      -? show this help",
