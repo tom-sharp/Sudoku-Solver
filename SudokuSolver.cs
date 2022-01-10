@@ -14,6 +14,9 @@ using Sudoku.Puzzle;
  * 
  * 
  *		Version		Description
+ *		0.12		Added a maxlevel (100 000) on number of puzzles to create
+ *					Minor correction to help
+ *					Added option to show each known number in puzzle separately
  *		0.11		Added support to create variant puzzles of same solution (-cpb)
  *					Changed to use NumPass as default algorithm
  *					Replaced switch -np with switch -l to use Logic only to try solve puzzle
@@ -44,15 +47,16 @@ namespace Sudoku.Solver
 {
 	public class SudokuSolver {
 
-		string MSGVersion = "Sudoku-Solver 0.11  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.12  (-? for help)";
 		string[] MSGHelp = {
-			"usage: sudoku-solver  {-?} {-r} {-np} {-c {count}} {-cp {count}} {-m} {-v} {-1} {-2} {-3} {puzzlestring}",
+			"usage: sudoku-solver  {-?} {-l} {-lr} {-lm} {-f} {-fr} {-v} {-n} {-1} {-2} {-3} {-c} {-cp} {-cpb} {count} {puzzlestring}",
 			"      -? show this help",
 			"      -f read a puzzle from file",
 			"      -fr read multiple puzzles from file, each line should be a puzzle",
 			"      -l use logic only to try solve puzzle",
 			"      -lr use logic only to try solve puzzle and show progress",
 			"      -lm use logic only to try solve puzzle and if not able to solve show possible numbers mask",
+			"      -n show each defined number in puzzle separately",
 			"      -v show puzzle and number mask as a grid",
 			"      -c {count} Create Sudoku solution, count = number of sudokus to create",
 			"      -cp {count} Create Sudoku puzzle, count = number of puzzles to create",
@@ -85,7 +89,8 @@ namespace Sudoku.Solver
 				str = arg.ToLower();
 				if (str.StartsWith('-')) {
 					// expectd to be an option
-					if (str.StartsWith("-lr")) { OptLogicOnly = true; OptLogicOnlyProgress = true; }
+					if (str.StartsWith("-n")) { OptShowNumbers = true; }
+					else if (str.StartsWith("-lr")) { OptLogicOnly = true; OptLogicOnlyProgress = true; }
 					else if (str.StartsWith("-lm")) { OptLogicOnly = true; OptShowMask = true; }
 					else if (str.StartsWith("-l")) { OptLogicOnly = true; }
 					else if (str.StartsWith("-fr")) { OptReadFileMultipleRow = true; }
@@ -113,7 +118,7 @@ namespace Sudoku.Solver
 				if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
 				count = 1;
 				if (puzzlefile.Length > 0) { if (!Int32.TryParse(puzzlefile, out count)) count = 1; }
-				if (count <= 0) count = 1;
+				if ((count <= 0) || (count > 100000)) count = 1;	// put a limit to prevent accidental parsed puzzle
 				while (count-- > 0) {
 					CreateSudoku(sudokubase);
 					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
@@ -211,6 +216,7 @@ namespace Sudoku.Solver
 				}
 				else Puzzle.ResolveRules();
 				if (this.Puzzle.IsSolved()) {
+					if (OptShowNumbers) ShowNumbers();
 					ShowPuzzle("Puzzle solved");
 					return this.Puzzle;
 				}
@@ -219,6 +225,7 @@ namespace Sudoku.Solver
 				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
 				Puzzle.ResolveNumPass();
 				if (this.Puzzle.IsSolved()) {
+					if (OptShowNumbers) ShowNumbers();
 					ShowPuzzle("Puzzle solved");
 					return this.Puzzle;
 				}
@@ -226,11 +233,13 @@ namespace Sudoku.Solver
 
 			// Puzzle not solved
 			if (!Puzzle.IsValid()) {
+				if (OptShowNumbers) ShowNumbers();
 				ShowPuzzle("Invalid or unsolvable puzzle");
 				return this.Puzzle;
 			}
 
 			// Check if mask should be shown
+			if (OptShowNumbers) ShowNumbers();
 			if (OptShowMask) ShowMask();
 			ShowPuzzle("Could not solve puzzle");
 			return this.Puzzle;
@@ -241,6 +250,7 @@ namespace Sudoku.Solver
 		void ShowPuzzle(string msg) {
 			int count = 0, spacer = 0;
 			string puzzle = this.Puzzle.GetPuzzle();
+
 
 			if (!OptShowVertical) {
 				if ((msg != null) && (msg.Length > 0)) Console.WriteLine($"{puzzle}   - {msg}");
@@ -287,6 +297,36 @@ namespace Sudoku.Solver
 
 		}
 
+		// show numbers as grid
+		void ShowNumbers() {
+			string[] numbers = new string[9];
+			int count = 0, spacer;
+
+			if (!OptShowVertical) {
+				for (int num = 1; num <= 9; num++) Console.WriteLine($"{Puzzle.GetNumber(num)}   - Known numbers {Puzzle.GetNumberCount(num)}/9");
+				return;
+			}
+
+			Console.WriteLine($"Known numbers {Puzzle.GetNumberCount()}/81");
+			for (int num = 0; num < 9; num++) numbers[num] = Puzzle.GetNumber(num + 1);
+			while (count < 81) {
+				for (int row = 0; row < 9; row++) {
+					spacer = 0;
+					for (int col = 0; col < 9; col++) {
+						Console.Write(numbers[row][count + col]);
+						spacer++;
+						if ((spacer == 3) || (spacer == 6)) Console.Write(" ");
+					}
+					Console.Write("  ");
+				}
+				count += 9;
+				if (count % 27 == 0) Console.Write("\n\n");
+				else Console.Write("\n");
+			}
+
+		}
+
+
 		string demopuzzle1 = "38........5...2..6...14....1...8..3...9.3.8.4..2.........62.7....6...........1.8.";
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
@@ -294,6 +334,7 @@ namespace Sudoku.Solver
 		bool OptLogicOnly = false;
 		bool OptLogicOnlyProgress = false;
 		bool OptShowMask = false;
+		bool OptShowNumbers = false;
 		bool OptReadFile = false;
 		bool OptReadFileMultipleRow = false;
 		bool OptShowVertical = false;
