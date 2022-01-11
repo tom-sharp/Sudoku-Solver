@@ -14,6 +14,7 @@ using Sudoku.Puzzle;
  * 
  * 
  *		Version		Description
+ *		0.13		Added puzzle validation and check for multiple solutions (switch -x, -x2)
  *		0.12		Added a maxlevel (100 000) on number of puzzles to create
  *					Minor correction to help
  *					Added option to show each known number in puzzle separately
@@ -47,7 +48,7 @@ namespace Sudoku.Solver
 {
 	public class SudokuSolver {
 
-		string MSGVersion = "Sudoku-Solver 0.12  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.13  (-? for help)";
 		string[] MSGHelp = {
 			"usage: sudoku-solver  {-?} {-l} {-lr} {-lm} {-f} {-fr} {-v} {-n} {-1} {-2} {-3} {-c} {-cp} {-cpb} {count} {puzzlestring}",
 			"      -? show this help",
@@ -56,8 +57,10 @@ namespace Sudoku.Solver
 			"      -l use logic only to try solve puzzle",
 			"      -lr use logic only to try solve puzzle and show progress",
 			"      -lm use logic only to try solve puzzle and if not able to solve show possible numbers mask",
-			"      -n show each defined number in puzzle separately",
+			"      -l use logic only to try solve puzzle",
 			"      -v show puzzle and number mask as a grid",
+			"      -x validate puzzle and check for multi-solutions",
+			"      -x2 only check if puzzle has more than one solution",
 			"      -c {count} Create Sudoku solution, count = number of sudokus to create",
 			"      -cp {count} Create Sudoku puzzle, count = number of puzzles to create",
 			"      -cpb {count} Create Sudoku puzzle using same base sudoku, count = number of puzzles to create",
@@ -73,17 +76,56 @@ namespace Sudoku.Solver
 			"   sudoku-solver -f -lm puzzle.txt   sudoku-solver -fr puzzles.txt       sudoku-solver -cpb 10",
 		};
 
+
+		public void Run(string[] args) {
+			int count = 0;
+			this.Puzzle = new SudokuPuzzle();
+
+			if (!ProcessArguments(args)) return;
+
+			if (OptCreateSudoku) {
+				SudokuPuzzle sudokubase = null;
+				if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
+				count = 1;
+				if (InputString.Length > 0) { if (!Int32.TryParse(InputString, out count)) count = 1; }
+				if ((count <= 0) || (count > 100000)) count = 1;	// put a limit to prevent accidental parsed puzzle
+				while (count-- > 0) {
+					CreateSudoku(sudokubase);
+					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
+					if (OptValidatePuzzle) CheckValidation();
+					else if (OptCheckMultiSolution) CheckMultiSolution();
+				}
+				return;
+			}
+
+			if (OptReadFileMultipleRow)	{
+				CList<CStr> puzzlelist = GetMultiplePuzzles(InputString);
+				if (puzzlelist != null) {
+					foreach (var p in puzzlelist) {
+						this.Puzzle.SetPuzzle(p.ToString());
+						if (OptValidatePuzzle) CheckValidation();
+						else if (OptCheckMultiSolution) CheckMultiSolution();
+						else SolvePuzzle();
+					}
+				}
+			}
+			else {
+				// read a single puzzle from file or commandline input
+				if (!SetPuzzle(InputString)) return;
+				if (OptValidatePuzzle) CheckValidation();
+				else if (OptCheckMultiSolution) CheckMultiSolution();
+				else SolvePuzzle();
+			}
+
+		}
+
 		public void ShowHelp() {
 			Console.WriteLine(MSGVersion);
 			foreach (var s in MSGHelp) Console.WriteLine(s);
 		}
 
-		public void Run(string[] args) {
-			int count = 0;
+		bool ProcessArguments(string[] args) {
 			string str;
-			string puzzlefile = "";
-			this.Puzzle = new SudokuPuzzle();
-
 			if (args.Length == 0) Console.WriteLine(MSGVersion);
 			foreach (var arg in args) {
 				str = arg.ToLower();
@@ -96,52 +138,28 @@ namespace Sudoku.Solver
 					else if (str.StartsWith("-fr")) { OptReadFileMultipleRow = true; }
 					else if (str.StartsWith("-f")) { OptReadFile = true; }
 					else if (str.StartsWith("-v")) { OptShowVertical = true; }
+					else if (str.StartsWith("-x2")) { OptCheckMultiSolution = true; }
+					else if (str.StartsWith("-x")) { OptValidatePuzzle = true; }
 					else if (str.StartsWith("-cpb")) { OptCreateSudoku = true; OptCreateSudokuBase = true; OptCreateSudokuPuzzle = true; }
 					else if (str.StartsWith("-cp")) { OptCreateSudoku = true; OptCreateSudokuPuzzle = true; }
 					else if (str.StartsWith("-c")) { OptCreateSudoku = true; }
-					else if (str.StartsWith("-1")) { puzzlefile = demopuzzle1; }
-					else if (str.StartsWith("-2")) { puzzlefile = demopuzzle2; }
-					else if (str.StartsWith("-3")) { puzzlefile = demopuzzle3; }
-					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return; }
-					else { Console.WriteLine($"Unknow switch {str}"); return; }
+					else if (str.StartsWith("-1")) { InputString = demopuzzle1; }
+					else if (str.StartsWith("-2")) { InputString = demopuzzle2; }
+					else if (str.StartsWith("-3")) { InputString = demopuzzle3; }
+					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return false; }
+					else { Console.WriteLine($"Unknow switch {str}"); return false; }
 				}
-				else {
+				else
+				{
 					// expected to be the puzzle string OR filename if readfile is set
-					if (str.StartsWith("?")) { ShowHelp(); return; }
-					else puzzlefile = str;
+					if (str.StartsWith("?")) { ShowHelp(); return false; }
+					else InputString = str;
 				}
 			}
-
-
-			if (OptCreateSudoku) {
-				SudokuPuzzle sudokubase = null;
-				if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
-				count = 1;
-				if (puzzlefile.Length > 0) { if (!Int32.TryParse(puzzlefile, out count)) count = 1; }
-				if ((count <= 0) || (count > 100000)) count = 1;	// put a limit to prevent accidental parsed puzzle
-				while (count-- > 0) {
-					CreateSudoku(sudokubase);
-					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
-				}
-				return;
-			}
-
-			if (OptReadFileMultipleRow)	{
-				CList<CStr> puzzlelist = GetMultiplePuzzles(puzzlefile);
-				if (puzzlelist != null) {
-					foreach (var p in puzzlelist) {
-						this.Puzzle.SetPuzzle(p.ToString());
-						SolvePuzzle();
-					}
-				}
-			}
-			else {
-				// read a single puzzle from file or commandline input
-				if (!SetPuzzle(puzzlefile)) return;
-				SolvePuzzle();
-			}
-
+			return true;
 		}
+
+
 
 		SudokuPuzzle CreateSudoku(SudokuPuzzle sudokubase) {
 			if (this.OptCreateSudokuPuzzle) this.Puzzle = new CreateSudoku().GetSudokuPuzzle(sudokubase);
@@ -196,7 +214,37 @@ namespace Sudoku.Solver
 			return true;
 		}
 
+		void CheckValidation() {
+			SudokuValidation validate = this.Puzzle.ValidatePuzzle();
+			if (validate.IsValidated) {
+				if (!validate.IsValid) { ShowPuzzle("Invalid puzzle"); return; }
+				if (!validate.IsSolvable) { ShowPuzzle("Unsolvable puzzle"); return; }
+				if (validate.IsMultiSolution) {
+					foreach (var p in validate.Solutions) {
+						this.Puzzle.SetPuzzle(p);
+						ShowPuzzle($"Multi-solution");
+					}
+					this.Puzzle.SetPuzzle(validate.Puzzle);
+					ShowPuzzle($"Multi {validate.SolutionCount} solutions puzzle");
+					return;
+				}
+				ShowPuzzle($"Validated ({validate.BackTrackCounter})");
+				return;
+			}
+			ShowPuzzle("Not validated");
+		}
+
+		// return true if mul
+		void CheckMultiSolution() {
+			if (this.Puzzle.IsMultiSolutionPuzzle()) {
+				ShowPuzzle("More than one solution");
+			}
+			ShowPuzzle("Is not multi-solution");
+		}
+
+
 		SudokuPuzzle SolvePuzzle() {
+
 
 			// check if its valid and not solved allready
 			if (!this.Puzzle.IsValid()) {
@@ -208,28 +256,9 @@ namespace Sudoku.Solver
 				return this.Puzzle;
 			}
 
-			// check if default NumPass algorithm should be used or if Logic only should be used
-			if (OptLogicOnly) {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm ({this.Puzzle.GetNumberCount()})");
-				if (OptLogicOnlyProgress) {
-					while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
-				}
-				else Puzzle.ResolveRules();
-				if (this.Puzzle.IsSolved()) {
-					if (OptShowNumbers) ShowNumbers();
-					ShowPuzzle("Puzzle solved");
-					return this.Puzzle;
-				}
-			}
-			else {
-				Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
-				Puzzle.ResolveNumPass();
-				if (this.Puzzle.IsSolved()) {
-					if (OptShowNumbers) ShowNumbers();
-					ShowPuzzle("Puzzle solved");
-					return this.Puzzle;
-				}
-			}
+			// check how puzzle should be solved
+			if (OptLogicOnly) { if (RunSolveLogic()) return this.Puzzle; }
+			else if (OptNumPassOnly) { if (RunSolveNumPass()) return this.Puzzle; }
 
 			// Puzzle not solved
 			if (!Puzzle.IsValid()) {
@@ -244,6 +273,32 @@ namespace Sudoku.Solver
 			ShowPuzzle("Could not solve puzzle");
 			return this.Puzzle;
 
+		}
+
+		// return true if puzzle is solved
+		bool RunSolveLogic() {
+			Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting 3R algorithm ({this.Puzzle.GetNumberCount()})");
+			if (OptLogicOnlyProgress) {
+				while (Puzzle.ResolveRules(1) > 0) Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Resolved number");
+			}
+			else Puzzle.ResolveRules();
+			if (this.Puzzle.IsSolved()) {
+				if (OptShowNumbers) ShowNumbers();
+				ShowPuzzle("Puzzle solved");
+				return true;
+			}
+			return false;
+		}
+
+
+		bool RunSolveNumPass() {
+			Console.WriteLine($"{this.Puzzle.GetPuzzle()}   - Starting numpass algorithm ({this.Puzzle.GetNumberCount()})");
+			if (Puzzle.ResolveNumPass()) {
+				if (OptShowNumbers) ShowNumbers();
+				ShowPuzzle("Puzzle solved");
+				return true;
+			}
+			return false;
 		}
 
 		// Show puzzle as grid
@@ -331,9 +386,13 @@ namespace Sudoku.Solver
 		string demopuzzle2 = "..4..7...6......5........9...195....29....7..8...1...3.....32.8.5..........12...4";
 		string demopuzzle3 = "6....1.7......75..3.....9...4..9.3.........8....5.4.2..7.6.8....93...7....6.2..1.";
 		SudokuPuzzle Puzzle;
+		string InputString = "";
+		bool OptNumPassOnly = true;
 		bool OptLogicOnly = false;
 		bool OptLogicOnlyProgress = false;
 		bool OptShowMask = false;
+		bool OptValidatePuzzle = false;
+		bool OptCheckMultiSolution = false;
 		bool OptShowNumbers = false;
 		bool OptReadFile = false;
 		bool OptReadFileMultipleRow = false;
