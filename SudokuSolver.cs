@@ -14,6 +14,8 @@ using Sudoku.Puzzle;
  * 
  * 
  *		Version		Description
+ *		0.14		BugFix - MultisolutionCheck incorrectly claimed multi-solution as not multi-solution puzzles
+ *					some code clean-up
  *		0.13		Added puzzle validation and check for multiple solutions (switch -x, -x2)
  *		0.12		Added a maxlevel (100 000) on number of puzzles to create
  *					Minor correction to help
@@ -48,7 +50,7 @@ namespace Sudoku.Solver
 {
 	public class SudokuSolver {
 
-		string MSGVersion = "Sudoku-Solver 0.13  (-? for help)";
+		string MSGVersion = "Sudoku-Solver 0.14  (-? for help)";
 		string[] MSGHelp = {
 			"usage: sudoku-solver  {-?} {-l} {-lr} {-lm} {-f} {-fr} {-v} {-n} {-1} {-2} {-3} {-c} {-cp} {-cpb} {count} {puzzlestring}",
 			"      -? show this help",
@@ -78,44 +80,13 @@ namespace Sudoku.Solver
 
 
 		public void Run(string[] args) {
-			int count = 0;
+
 			this.Puzzle = new SudokuPuzzle();
 
 			if (!ProcessArguments(args)) return;
-
-			if (OptCreateSudoku) {
-				SudokuPuzzle sudokubase = null;
-				if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
-				count = 1;
-				if (InputString.Length > 0) { if (!Int32.TryParse(InputString, out count)) count = 1; }
-				if ((count <= 0) || (count > 100000)) count = 1;	// put a limit to prevent accidental parsed puzzle
-				while (count-- > 0) {
-					CreateSudoku(sudokubase);
-					ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
-					if (OptValidatePuzzle) CheckValidation();
-					else if (OptCheckMultiSolution) CheckMultiSolution();
-				}
-				return;
-			}
-
-			if (OptReadFileMultipleRow)	{
-				CList<CStr> puzzlelist = GetMultiplePuzzles(InputString);
-				if (puzzlelist != null) {
-					foreach (var p in puzzlelist) {
-						this.Puzzle.SetPuzzle(p.ToString());
-						if (OptValidatePuzzle) CheckValidation();
-						else if (OptCheckMultiSolution) CheckMultiSolution();
-						else SolvePuzzle();
-					}
-				}
-			}
-			else {
-				// read a single puzzle from file or commandline input
-				if (!SetPuzzle(InputString)) return;
-				if (OptValidatePuzzle) CheckValidation();
-				else if (OptCheckMultiSolution) CheckMultiSolution();
-				else SolvePuzzle();
-			}
+			if (OptCreateSudoku) { CreateSudokuPuzzles(); return; }
+			if (OptReadFileMultipleRow) { ProcessMultipleSudokuPuzzles(); return; }
+			ProcessSingleSudokuPuzzles();
 
 		}
 
@@ -149,8 +120,7 @@ namespace Sudoku.Solver
 					else if ((str.StartsWith("-h")) || (str.StartsWith("-?"))) { ShowHelp(); return false; }
 					else { Console.WriteLine($"Unknow switch {str}"); return false; }
 				}
-				else
-				{
+				else {
 					// expected to be the puzzle string OR filename if readfile is set
 					if (str.StartsWith("?")) { ShowHelp(); return false; }
 					else InputString = str;
@@ -159,6 +129,41 @@ namespace Sudoku.Solver
 			return true;
 		}
 
+
+		void CreateSudokuPuzzles() {
+			SudokuPuzzle sudokubase = null;
+			int count;
+			if (OptCreateSudokuBase) sudokubase = new CreateSudoku().GetNewSudoku();
+			count = 1;
+			if (InputString.Length > 0) { if (!Int32.TryParse(InputString, out count)) count = 1; }
+			if ((count <= 0) || (count > 100000)) count = 1;    // put a limit to prevent accidental parsed puzzle
+			while (count-- > 0) {
+				CreateSudoku(sudokubase);
+				ShowPuzzle($"New Random sudoku {this.Puzzle.GetNumberCount()}");
+				if (OptValidatePuzzle) CheckValidation();
+				else if (OptCheckMultiSolution) CheckMultiSolution();
+			}
+		}
+
+		void ProcessMultipleSudokuPuzzles() {
+			CList<CStr> puzzlelist = GetMultiplePuzzles(this.InputString);
+			if (puzzlelist != null)	{
+				foreach (var p in puzzlelist) {
+					this.Puzzle.SetPuzzle(p.ToString());
+					if (OptValidatePuzzle) CheckValidation();
+					else if (OptCheckMultiSolution) CheckMultiSolution();
+					else SolvePuzzle();
+				}
+			}
+		}
+
+		void ProcessSingleSudokuPuzzles() {
+			if (!this.SetPuzzle(InputString)) return;
+			if (OptValidatePuzzle) CheckValidation();
+			else if (OptCheckMultiSolution) CheckMultiSolution();
+			else SolvePuzzle();
+
+		}
 
 
 		SudokuPuzzle CreateSudoku(SudokuPuzzle sudokubase) {
@@ -236,15 +241,12 @@ namespace Sudoku.Solver
 
 		// return true if mul
 		void CheckMultiSolution() {
-			if (this.Puzzle.IsMultiSolutionPuzzle()) {
-				ShowPuzzle("More than one solution");
-			}
-			ShowPuzzle("Is not multi-solution");
+			if (this.Puzzle.IsMultiSolutionPuzzle()) ShowPuzzle("More than one solution");
+			else ShowPuzzle("Single solution");
 		}
 
 
 		SudokuPuzzle SolvePuzzle() {
-
 
 			// check if its valid and not solved allready
 			if (!this.Puzzle.IsValid()) {
