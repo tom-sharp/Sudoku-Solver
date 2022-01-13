@@ -1,3 +1,5 @@
+1000-Hard-Puzzles.txt
+SHA-256: 8f6ecfeb7913f64938c240dbf0682675da74c8e1718ac617be7907e2801e1162
 4000-Puzzles.txt
 SHA-256: 38fae47f3365ee2f25291e827b625668548ff97b00e721c6b5eb8084db9ecac1
 Invalid-Puzzles.txt
